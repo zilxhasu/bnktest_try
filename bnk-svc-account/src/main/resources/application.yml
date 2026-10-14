@@ -1,0 +1,95 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: bnk-svc-account
+  profiles:
+    # 沒指定 profile 時用 local（零依賴）；容器裡設 SPRING_PROFILES_ACTIVE=docker
+    default: local
+
+mybatis:
+  mapper-locations: classpath*:mappers/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+bnk:
+  corebank:
+    simulate-max-delay-ms: 800
+  batch:
+    ttl-seconds: 300
+    poll-interval-ms: 500
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true   # /actuator/health/liveness、/readiness 給 K8s 探針用
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [trace=%X{traceId} user=%X{userId} id=%X{companyId}] %logger{30} - %msg%n"
+  level:
+    com.example.bnk: DEBUG
+
+---
+# local：H2 記憶體 DB + 程式內模擬主機 + 記憶體聚合，不需要安裝任何東西
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:mem:bnk;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+bnk:
+  corebank:
+    mode: simulate
+  batch:
+    store: memory
+
+---
+# docker / k8s：真實 PostgreSQL + Redis + RabbitMQ。
+# 帳密一律從環境變數讀取，不寫死在程式碼或 Git 裡。
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:bnk}
+    username: ${DB_USER:bnk}
+    password: ${DB_PASSWORD}
+  sql:
+    init:
+      mode: never   # 由 db/*.sql 在 PostgreSQL 容器第一次啟動時建立
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:guest}
+    password: ${RABBIT_PASSWORD:guest}
+
+bnk:
+  corebank:
+    mode: mq
+  batch:
+    store: redis

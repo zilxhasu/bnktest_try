@@ -1,0 +1,23 @@
+:root {
+  --brand: #0f5c4d;
+  --brand-soft: #e3f1ed;
+  --ink: #1d2a2f;
+  --muted: #5f6f74;
+  --line: #d9e2e0;
+  --danger: #b3261e;
+  font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  color: var(--ink);
+}
+body { margin: 0; background: #f6f8f7; }
+button {
+  background: var(--brand); color: #fff; border: 0; border-radius: 6px;
+  padding: 8px 16px; font-size: 14px; cursor: pointer;
+}
+button[disabled] { opacity: .5; cursor: default; }
+button.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+input { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 14px; }
+table { border-collapse: collapse; width: 100%; background: #fff; }
+th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; font-size: 14px; }
+th { color: var(--muted); font-weight: 600; background: #fafcfb; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.error { color: var(--danger); }

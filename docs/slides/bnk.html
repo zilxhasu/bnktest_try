@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>bnktest_try 技術介紹</title>
+<link rel="stylesheet" href="deck.css"></head><body>
+
+<!-- 1 -->
+<section class="slide dark" style="justify-content:center">
+  <p class="sub" style="margin-bottom:10px">架構練習專案（開源）</p>
+  <h1 style="font-size:60px">bnktest_try</h1>
+  <h1 style="font-size:34px;font-weight:400;color:#cfe6df">迷你企業網銀：約 3,500 行程式碼，示範企業網銀常見的微服務架構</h1>
+  <div class="row" style="margin-top:40px;gap:10px;flex-wrap:wrap">
+    <span class="tag" style="font-size:16px;padding:6px 12px">Angular 18</span><span class="tag" style="font-size:16px;padding:6px 12px">Quarkus 3.28</span><span class="tag" style="font-size:16px;padding:6px 12px">Spring Boot 3.5</span><span class="tag" style="font-size:16px;padding:6px 12px">MyBatis</span><span class="tag" style="font-size:16px;padding:6px 12px">RabbitMQ</span><span class="tag" style="font-size:16px;padding:6px 12px">Redis</span><span class="tag" style="font-size:16px;padding:6px 12px">PostgreSQL / H2</span><span class="tag" style="font-size:16px;padding:6px 12px">Kubernetes</span><span class="tag" style="font-size:16px;padding:6px 12px">GitHub Actions</span><span class="tag" style="font-size:16px;padding:6px 12px">k6</span>
+  </div>
+  <div class="foot"><span>全部資料為虛構，不含任何公司名稱、內網位址、金鑰或帳密</span><span>2026-10</span></div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <h2><span class="chip easy">白話</span>它能做什麼</h2>
+  <div class="row" style="align-items:flex-start">
+    <div style="width:420px">
+      <div class="step"><div class="n">1</div><p><b>登入</b>企業使用者輸入帳密，拿到一張有時效的「電子通行證」（JWT）。</p></div>
+      <div class="step"><div class="n">2</div><p><b>看帳戶</b>列出公司在台灣、香港、新加坡的所有帳戶，可以幫帳戶取暱稱。</p></div>
+      <div class="step"><div class="n">3</div><p><b>查餘額</b>系統同時問各地「主機」，答案一筆一筆回來，畫面一筆一筆長出來。</p></div>
+      <div class="step"><div class="n">4</div><p><b>依幣別加總</b>台幣、美金、港幣…自動分別加總。</p></div>
+    </div>
+    <div class="col"><img class="shot" src="ui-overview.png" style="width:100%"></div>
+  </div>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>2</span></div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <h2><span class="chip deep">深入</span>架構總覽</h2>
+  <svg viewBox="0 0 1136 470" width="1136" height="470" font-family="PingFang TC" font-size="16">
+    <defs><marker id="m" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#5f6f74"/></marker></defs>
+    <g font-weight="700" text-anchor="middle">
+      <rect x="0" y="40" width="170" height="90" rx="12" fill="#fff" stroke="#0f5c4d" stroke-width="2"/><text x="85" y="78" fill="#0f5c4d">bnk-ui</text><text x="85" y="102" font-weight="400" font-size="13" fill="#5f6f74">Angular 18 + nginx</text>
+      <rect x="230" y="40" width="200" height="90" rx="12" fill="#0f5c4d"/><text x="330" y="78" fill="#fff">bnk-gateway</text><text x="330" y="102" font-weight="400" font-size="13" fill="#cfe6df">Quarkus · Vert.x · JWT</text>
+      <rect x="490" y="40" width="220" height="90" rx="12" fill="#0f5c4d"/><text x="600" y="78" fill="#fff">bnk-svc-account</text><text x="600" y="102" font-weight="400" font-size="13" fill="#cfe6df">Spring Boot · MyBatis</text>
+      <rect x="490" y="230" width="220" height="80" rx="12" fill="#fdf1dc" stroke="#c97a00" stroke-width="2"/><text x="600" y="265" fill="#c97a00">RabbitMQ</text><text x="600" y="288" font-weight="400" font-size="13" fill="#5f6f74">exchange bnk.core</text>
+      <rect x="790" y="230" width="230" height="80" rx="12" fill="#38494e"/><text x="905" y="265" fill="#fff">bnk-core-emulator</text><text x="905" y="288" font-weight="400" font-size="13" fill="#d0d8d6">假核心主機（JSON 範本）</text>
+      <rect x="790" y="40" width="160" height="90" rx="12" fill="#fff" stroke="#2f5d8a" stroke-width="2"/><text x="870" y="78" fill="#2f5d8a">PostgreSQL</text><text x="870" y="102" font-weight="400" font-size="13" fill="#5f6f74">local 時用 H2</text>
+      <rect x="230" y="230" width="200" height="80" rx="12" fill="#fff" stroke="#b3261e" stroke-width="2"/><text x="330" y="265" fill="#b3261e">Redis</text><text x="330" y="288" font-weight="400" font-size="13" fill="#5f6f74">batch:{id}:meta / results</text>
+      <rect x="0" y="370" width="430" height="70" rx="12" fill="#fff" stroke="#9aa9a6" stroke-width="2" stroke-dasharray="5 4"/><text x="215" y="400" fill="#5f6f74">Prometheus / Grafana（選用）</text><text x="215" y="424" font-weight="400" font-size="13" fill="#5f6f74">定期抓取 gateway 的 /q/metrics 與 svc 的 /actuator/prometheus</text>
+    </g>
+    <g stroke="#5f6f74" stroke-width="2" fill="none" marker-end="url(#m)">
+      <line x1="172" y1="85" x2="226" y2="85"/>
+      <line x1="432" y1="85" x2="486" y2="85"/>
+      <line x1="712" y1="85" x2="786" y2="85"/>
+      <line x1="620" y1="132" x2="620" y2="226"/>
+      <line x1="580" y1="228" x2="580" y2="134"/>
+      <line x1="712" y1="260" x2="786" y2="260"/>
+      <line x1="788" y1="290" x2="714" y2="290"/>
+      <line x1="500" y1="132" x2="420" y2="226"/>
+    </g>
+    <g font-size="13" fill="#1d2a2f">
+      <text x="176" y="30">/auth /api</text>
+      <text x="440" y="30">驗 JWT 後轉發</text>
+      <text x="726" y="72">SQL</text>
+      <text x="630" y="185">① core.req.{AREA}</text>
+      <text x="572" y="212" text-anchor="end">④ core.resp</text>
+      <text x="716" y="252">②</text><text x="740" y="308">③</text>
+      <text x="452" y="160" text-anchor="end">⑤ 寫入結果</text>
+    </g>
+    
+  </svg>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>3</span></div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <h2><span class="chip deep">深入</span>六個設計重點</h2>
+  <table class="t">
+    <tr><th style="width:220px">設計</th><th>做法</th><th style="width:360px">為什麼</th></tr>
+    <tr><td>版本集中管理</td><td>根目錄 parent pom 的 properties + dependencyManagement（BOM 概念）</td><td>升級或修補漏洞只改一處</td></tr>
+    <tr><td>共用函式庫</td><td>bnk-shared：API 信封、核心電文 DTO、遮罩工具</td><td>各服務格式一致，不重複造輪子</td></tr>
+    <tr><td>業務模組 / 部署單位分離</td><td>bnk-mod-account（jar）+ bnk-svc-account（可部署）</td><td>同一份業務程式可組進不同服務</td></tr>
+    <tr><td>四層分層</td><td>api / usecase / domain / infra，一支 API 一個 UseCase 類別</td><td>職責清楚，好測試、好找程式</td></tr>
+    <tr><td>API Gateway</td><td>Quarkus + Vert.x：驗 JWT → 路由 → 非阻塞轉發</td><td>入口統一做身分驗證，後端只管業務</td></tr>
+    <tr><td>非同步聚合</td><td>query → batchId → RabbitMQ → Redis → poll</td><td>主機慢也不卡執行緒，可水平擴充</td></tr>
+    <tr><td>主機模擬器</td><td>bnk-core-emulator：JSON 範本、可設延遲與失敗率</td><td>不依賴真主機就能開發與測試</td></tr>
+    <tr><td>全免費工具鏈</td><td>GitHub Actions + Maven Central + GHCR + PostgreSQL</td><td>任何人 clone 下來就能跑</td></tr>
+  </table>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>4</span></div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <h2><span class="chip deep">深入</span>專案結構</h2>
+  <div class="row">
+    <div style="width:520px">
+<pre>bnktest_try/
+├── pom.xml               <span class="c"># parent：版本集中</span>
+├── .mvn/settings.xml     <span class="c"># 走 Maven Central</span>
+├── bnk-shared/           <span class="c"># 共用 DTO / 工具</span>
+├── bnk-mod-account/      <span class="c"># 業務模組 (jar)</span>
+│   └── account/
+│       ├── api/          <span class="c"># Controller</span>
+│       ├── usecase/      <span class="c"># 一支 API 一個類別</span>
+│       ├── domain/       <span class="c"># 業務規則</span>
+│       └── infra/        <span class="c"># db · corebank · batch · req/res</span>
+├── bnk-svc-account/      <span class="c"># 可部署服務 + application.yml</span>
+├── bnk-core-emulator/    <span class="c"># 假主機</span>
+├── bnk-gateway/          <span class="c"># Quarkus 閘道</span>
+├── bnk-ui/               <span class="c"># Angular 前端 + nginx</span>
+├── db/  k8s/  k6/  observability/
+├── docker-compose.yml
+└── .github/workflows/ci.yml</pre>
+    </div>
+    <div class="col">
+      <div class="card deep"><h3>為什麼 mod 和 svc 要分開？</h3><p>mod 只有業務程式，沒有 main()、沒有環境設定；svc 只有 <code>@Import(AccountModuleConfig.class)</code> 加上設定檔與監控。未來要把 account 功能塞進另一個服務，只要再 import 一次。</p></div>
+      <div class="card easy" style="margin-top:14px"><p style="margin:0"><span class="chip easy">白話</span>mod 是「引擎」，svc 是「整台車」。同一顆引擎可以裝進不同車款。</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>5</span></div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <h2><span class="chip deep">深入</span>核心流程：query → poll</h2>
+  <div class="row">
+    <div class="col">
+      <div class="step"><div class="n">1</div><p><b>balances/query</b>檢查帳號都屬於登入統編 → 產生 batchId → 先在聚合區建立批次（total=6）→ 每帳號送一筆 <code>BAL001</code> 電文 → 立刻回 <code>{batchId, pollIntervalMs: 500}</code></p></div>
+      <div class="step"><div class="n">2</div><p><b>主機回覆</b>模擬器 0～1.5 秒內陸續回覆，5% 機率回錯誤碼，寫入 <code>batch:{batchId}:results</code></p></div>
+      <div class="step"><div class="n">3</div><p><b>balances/result 輪詢</b>先確認批次擁有者 = 登入統編，再組出已回來的明細與幣別加總；前端用 RxJS <code>timer + switchMap + takeWhile(done)</code> 自動停止。</p></div>
+      <div class="card warn" style="margin-top:6px"><p style="margin:0"><b>順序很重要</b>：必須「先建立批次、再送電文」，否則快速的主機回覆可能比批次先到而遺失。</p></div>
+    </div>
+    <div style="width:480px">
+      <img class="shot" src="ui-partial.png" style="width:100%">
+      <p style="font-size:14px;color:var(--muted);margin:8px 0 0">查詢中：已回來的帳號先顯示餘額，其餘顯示「查詢中…」</p>
+    </div>
+  </div>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>6</span></div>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <h2><span class="chip deep">深入</span>一套程式，兩種執行模式</h2>
+  <div class="row">
+    <div class="col card soft"><h3>local（預設）— 零安裝</h3>
+      <table class="t" style="font-size:15.5px"><tr><td>DB</td><td>H2 記憶體（PostgreSQL 模式），啟動自動建表</td></tr><tr><td>電文</td><td><code>bnk.corebank.mode=simulate</code>：程式內延遲回覆</td></tr><tr><td>聚合</td><td><code>bnk.batch.store=memory</code>：ConcurrentHashMap + TTL</td></tr><tr><td>需要</td><td>JDK 21、Maven、Node 22</td></tr></table></div>
+    <div class="col card deep"><h3>docker / k8s — 真實中介軟體</h3>
+      <table class="t" style="font-size:15.5px"><tr><td>DB</td><td>PostgreSQL 17，<code>db/*.sql</code> 初始化</td></tr><tr><td>電文</td><td><code>mode=mq</code>：RabbitMQ topic exchange</td></tr><tr><td>聚合</td><td><code>store=redis</code>：多 Pod 共用</td></tr><tr><td>需要</td><td>Docker（或 Colima / Podman）</td></tr></table></div>
+  </div>
+  <div class="card" style="margin-top:20px"><p style="margin:0">實作方式：同一個介面（<code>CoreGateway</code>、<code>BatchResultStore</code>）兩個實作，以 <code>@ConditionalOnProperty</code> 依設定擇一注入；切換只需 <code>SPRING_PROFILES_ACTIVE=docker</code>。業務程式完全不知道自己跑在哪種模式。</p></div>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>7</span></div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <h2><span class="chip deep">深入</span>安全設計</h2>
+  <div class="row" style="flex-wrap:wrap;gap:14px">
+    <div class="card deep" style="width:362px"><h3>JWT RS256</h3><p>Gateway 啟動時臨時產生 RSA 金鑰對，Git 裡沒有私鑰；token 30 分鐘到期，竄改即 401。</p></div>
+    <div class="card deep" style="width:362px"><h3>身分 header 重建</h3><p>轉發時由 Gateway 依 JWT 重新產生 <code>X-Bnk-*</code>，不沿用前端送來的值，防偽造身分。</p></div>
+    <div class="card deep" style="width:362px"><h3>越權檢查</h3><p>前端送的帳號必須全屬登入統編，否則 E003；別人的 batchId 一律回「不存在」。</p></div>
+    <div class="card deep" style="width:362px"><h3>輸入驗證</h3><p>Bean Validation（帳號格式、暱稱長度）；MyBatis <code>#{}</code> 參數綁定防 SQL Injection。</p></div>
+    <div class="card deep" style="width:362px"><h3>不洩漏細節</h3><p>全域例外處理只回代碼；登入失敗不區分「無此帳號 / 密碼錯」；常數時間比對密碼。</p></div>
+    <div class="card deep" style="width:362px"><h3>個資與容器</h3><p>log 遮罩帳號與統編；畫面帳號遮罩；容器非 root；nginx 加資安 header；密碼只放 .env / K8s Secret。</p></div>
+  </div>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>8</span></div>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <h2><span class="chip deep">深入</span>測試：16 個自動化測試全數通過</h2>
+  <div class="row">
+    <div style="width:330px">
+      <div class="card soft" style="text-align:center"><div class="big">16 / 16</div><div class="biglabel">mvn install 全部通過</div></div>
+      <div class="card easy" style="margin-top:16px"><p style="margin:0"><span class="chip easy">白話</span>每次改程式，機器會自動把這 16 個情境重跑一遍，壞掉立刻知道。</p></div>
+    </div>
+    <div class="col">
+      <table class="t">
+        <tr><th>測試類別</th><th style="width:64px">數量</th><th>驗證內容</th></tr>
+        <tr><td>MaskUtilTest</td><td>2</td><td>帳號、統編遮罩規則</td></tr>
+        <tr><td>BalanceDomainTest</td><td>2</td><td>一帳號一電文、依幣別加總並略過失敗</td></tr>
+        <tr><td>AccountApiIntegrationTest</td><td>6</td><td>啟動完整 Spring + H2：帳號清單、未登入、越權、輸入驗證、暱稱存取、query→poll 全流程與跨統編防護</td></tr>
+        <tr><td>GatewayTest</td><td>6</td><td>登入成功 / 失敗、無 token、竄改 token、未知服務、health</td></tr>
+      </table>
+      <p style="font-size:15px;color:var(--muted)">另以 headless Chrome 實測：登入 → 總覽 → 6 / 6 主機回覆完成；k6 腳本提供壓測。</p>
+    </div>
+  </div>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>9</span></div>
+</section>
+
+<!-- 10 -->
+<section class="slide">
+  <h2><span class="chip deep">深入</span>建置、部署與觀測</h2>
+  <div class="row" style="gap:16px">
+    <div class="col card"><h3>🐳 Docker Compose</h3><ul><li>postgres · redis · rabbitmq · emulator · svc · gateway · ui 一鍵起</li><li>healthcheck + depends_on 依序啟動</li><li><code>--profile obs</code> 加開 Prometheus / Grafana</li><li>密碼由 <code>.env</code> 注入，缺少就拒絕啟動</li></ul></div>
+    <div class="col card"><h3>☸️ Kubernetes</h3><ul><li>kind / minikube 本機即可</li><li>Secret / ConfigMap 分離設定</li><li>readiness / liveness 探針</li><li>HPA：CPU 70% 自動擴到 5 個 Pod</li><li>Ingress 用 bnk.localtest.me 免改 hosts</li></ul></div>
+    <div class="col card"><h3>⚙️ CI / 映像</h3><ul><li>GitHub Actions：後端 verify + 前端 typecheck / build</li><li>Jib：不寫 Dockerfile 產生 Java 映像</li><li>Angular：Node 多階段 → nginx-unprivileged</li><li>可選推送到 GHCR</li></ul></div>
+  </div>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>10</span></div>
+</section>
+
+<!-- 11 -->
+<section class="slide">
+  <h2><span class="chip easy">白話</span>需要申請帳號的部分 → 免費替代方案</h2>
+  <table class="t dense">
+    <tr><th style="width:230px">真實環境常見</th><th>本專案的免費做法</th><th style="width:240px">需不需要註冊</th></tr>
+    <tr><td>私有 Maven 倉庫</td><td>Maven Central（專案自帶 settings.xml）</td><td>不需要</td></tr>
+    <tr><td>SQL Server</td><td>PostgreSQL / H2；要練 SQL Server 可用官方 Developer Edition 容器（開發免費）</td><td>不需要</td></tr>
+    <tr><td>私有映像倉庫</td><td>本機 Docker、<code>kind load</code>；上雲用 GitHub Container Registry</td><td>GHCR 需 GitHub 免費帳號</td></tr>
+    <tr><td>自架 CI 伺服器</td><td>GitHub Actions（公開 repo 免費，私有每月 2,000 分鐘）</td><td>GitHub 免費帳號</td></tr>
+    <tr><td>Docker Desktop</td><td>個人 / 小公司免費；替代 Colima、Podman Desktop、Rancher Desktop</td><td>替代方案不需要</td></tr>
+    <tr><td>正式 K8s 叢集</td><td>kind / minikube / k3d</td><td>不需要</td></tr>
+    <tr><td>核心主機</td><td>bnk-core-emulator</td><td>不需要</td></tr>
+    <tr><td>HSM 硬體加密</td><td>SoftHSM2 或 Java KeyStore</td><td>不需要</td></tr>
+    <tr><td>簡訊 OTP</td><td>TOTP（Google Authenticator 相容）；Email 測試用 Mailpit</td><td>不需要</td></tr>
+    <tr><td>監控 / 弱掃工具</td><td>Prometheus + Grafana OSS、Jaeger；SonarQube CE、SpotBugs、OWASP Dependency-Check、Trivy</td><td>不需要</td></tr>
+  </table>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>11</span></div>
+</section>
+
+<!-- 12 -->
+<section class="slide">
+  <h2>動手跑起來</h2>
+  <div class="row">
+    <div class="col">
+<pre><span class="c"># A. 零安裝模式（JDK 21 + Maven + Node 22）</span>
+mvn install                         <span class="c"># 建置 + 16 個測試</span>
+java -jar bnk-svc-account/target/*.jar
+java -jar bnk-gateway/target/quarkus-app/quarkus-run.jar
+cd bnk-ui &amp;&amp; npm install &amp;&amp; npm start
+<span class="c"># 開 http://localhost:4200  帳號 alice / demo1234</span>
+
+<span class="c"># B. 完整模式（Docker）</span>
+cp .env.example .env
+mvn -DskipTests install
+mvn -pl bnk-svc-account,bnk-core-emulator jib:dockerBuild
+docker compose up -d --build
+
+<span class="c"># 壓測</span>
+k6 run -e VUS=10 -e DUR=1m k6/smoke.js</pre>
+    </div>
+    <div style="width:400px">
+      <div class="card deep"><h3>練習題（由淺入深）</h3><ul>
+        <li>新增「交易明細」API：照 api / usecase / domain / infra 各加一個類別</li>
+        <li>在模擬器加一個 <code>TXN001.json</code> 範本</li>
+        <li>前端加 ngx-translate 多語系</li>
+        <li>Gateway 加 IP 白名單 Filter</li>
+        <li>接上 OpenTelemetry → Jaeger</li>
+        <li>Gateway 金鑰改從 K8s Secret 載入，支援多副本</li>
+      </ul></div>
+    </div>
+  </div>
+  <div class="foot"><span>bnktest_try 技術介紹</span><span>12</span></div>
+</section>
+</body></html>

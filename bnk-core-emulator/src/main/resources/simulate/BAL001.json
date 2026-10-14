@@ -1,0 +1,6 @@
+{
+  "accountNo": "${accountNo}",
+  "currency": "${currency}",
+  "balance": "${random.balance}",
+  "availBalance": "${random.balance}"
+}

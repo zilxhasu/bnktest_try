@@ -1,0 +1,10 @@
+# 先 mvn -pl bnk-gateway -am package，再 docker build -f src/main/docker/Dockerfile.jvm -t bnk/bnk-gateway .
+FROM eclipse-temurin:21-jre
+WORKDIR /work
+COPY target/quarkus-app/lib/ /work/lib/
+COPY target/quarkus-app/*.jar /work/
+COPY target/quarkus-app/app/ /work/app/
+COPY target/quarkus-app/quarkus/ /work/quarkus/
+USER 1000
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/work/quarkus-run.jar"]

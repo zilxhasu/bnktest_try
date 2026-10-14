@@ -1,0 +1,100 @@
+# 一鍵啟動整套環境：docker compose up -d --build
+# 先執行：mvn -DskipTests install && mvn -pl bnk-svc-account,bnk-core-emulator jib:dockerBuild
+# 觀測工具（Prometheus + Grafana + Jaeger）：docker compose --profile obs up -d
+name: bnktest
+
+x-java-env: &java-env
+  SPRING_PROFILES_ACTIVE: docker
+  RABBIT_HOST: rabbitmq
+  RABBIT_USER: ${RABBIT_USER:-bnk}
+  RABBIT_PASSWORD: ${RABBIT_PASSWORD:?請在 .env 設定 RABBIT_PASSWORD}
+
+services:
+  # ---------- 基礎設施（全部官方免費映像） ----------
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: bnk
+      POSTGRES_USER: bnk
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?請在 .env 設定 DB_PASSWORD}
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d:ro   # 第一次啟動自動跑 01-schema.sql、02-data.sql
+      - pgdata:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bnk"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER:-bnk}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD}
+    ports: ["5672:5672", "15672:15672"]     # 15672 = 管理介面
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 10
+
+  # ---------- 應用程式 ----------
+  bnk-core-emulator:
+    image: bnk/bnk-core-emulator:0.1.0-SNAPSHOT
+    environment: *java-env
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+  bnk-svc-account:
+    image: bnk/bnk-svc-account:0.1.0-SNAPSHOT
+    environment:
+      <<: *java-env
+      DB_HOST: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+    ports: ["8081:8081"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  bnk-gateway:
+    build:
+      context: ./bnk-gateway
+      dockerfile: src/main/docker/Dockerfile.jvm
+    environment:
+      ACCOUNT_SVC_URL: http://bnk-svc-account:8081
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-demo1234}
+    ports: ["8080:8080"]
+    depends_on: [bnk-svc-account]
+
+  bnk-ui:
+    build: ./bnk-ui
+    ports: ["4200:8080"]
+    depends_on: [bnk-gateway]
+
+  # ---------- 觀測（選用） ----------
+  prometheus:
+    profiles: ["obs"]
+    image: prom/prometheus:v3.5.0
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+
+  grafana:
+    profiles: ["obs"]
+    image: grafana/grafana-oss:12.1.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./observability/grafana-datasource.yml:/etc/grafana/provisioning/datasources/ds.yml:ro
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:

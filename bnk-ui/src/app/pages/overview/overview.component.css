@@ -1,0 +1,11 @@
+.head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; }
+h1 { margin: 0; font-size: 24px; }
+.progress { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.totals { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.tile { background: var(--brand-soft); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.currency { font-size: 12px; color: var(--brand); font-weight: 700; }
+.amt { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cnt { font-size: 12px; color: var(--muted); }
+.pending { color: var(--muted); }
+.edit { color: var(--brand); cursor: pointer; font-size: 12px; margin-left: 6px; }
+td input { width: 120px; margin-right: 6px; }

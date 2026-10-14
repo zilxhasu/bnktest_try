@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.bnk.account.infra.db.mapper.AccountMapper">
+
+    <sql id="baseSelect">
+        SELECT p.COMPANY_ID, p.ACCOUNT_NO, p.AREA, p.CURRENCY, p.ACCOUNT_TYPE, a.ALIAS
+          FROM COMPANY_ACCOUNT p
+          LEFT JOIN ACCOUNT_ALIAS a ON a.COMPANY_ID = p.COMPANY_ID AND a.ACCOUNT_NO = p.ACCOUNT_NO
+    </sql>
+
+    <!-- #{} 一律走 PreparedStatement 參數綁定，避免 SQL Injection -->
+    <select id="selectByCompanyId" resultType="com.example.bnk.account.infra.db.entity.Account">
+        <include refid="baseSelect"/>
+         WHERE p.COMPANY_ID = #{companyId}
+         ORDER BY p.AREA, p.ACCOUNT_NO
+    </select>
+
+    <select id="selectByCompanyIdAndAccounts" resultType="com.example.bnk.account.infra.db.entity.Account">
+        <include refid="baseSelect"/>
+         WHERE p.COMPANY_ID = #{companyId}
+           AND p.ACCOUNT_NO IN
+        <foreach collection="accountNos" item="account" open="(" separator="," close=")">
+            #{account}
+        </foreach>
+         ORDER BY p.AREA, p.ACCOUNT_NO
+    </select>
+
+    <update id="updateAlias">
+        UPDATE ACCOUNT_ALIAS SET ALIAS = #{alias}
+         WHERE COMPANY_ID = #{companyId} AND ACCOUNT_NO = #{accountNo}
+    </update>
+
+    <insert id="insertAlias">
+        INSERT INTO ACCOUNT_ALIAS (COMPANY_ID, ACCOUNT_NO, ALIAS) VALUES (#{companyId}, #{accountNo}, #{alias})
+    </insert>
+</mapper>

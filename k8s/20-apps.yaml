@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: bnk-svc-account, namespace: bnk, labels: { app: bnk-svc-account } }
+spec:
+  replicas: 2                      # 2 個 Pod：聚合狀態放 Redis，所以哪個 Pod 回應都一樣
+  selector: { matchLabels: { app: bnk-svc-account } }
+  template:
+    metadata:
+      labels: { app: bnk-svc-account }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8081"
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 1000 }
+      containers:
+        - name: app
+          image: bnk/bnk-svc-account:0.1.0-SNAPSHOT
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8081 }]
+          envFrom:
+            - configMapRef: { name: bnk-config }
+            - secretRef: { name: bnk-secret }
+          resources:
+            requests: { cpu: 200m, memory: 384Mi }
+            limits: { memory: 768Mi }
+          readinessProbe:            # 沒準備好就不導流量
+            httpGet: { path: /actuator/health/readiness, port: 8081 }
+            initialDelaySeconds: 15
+          livenessProbe:             # 卡死就自動重啟
+            httpGet: { path: /actuator/health/liveness, port: 8081 }
+            initialDelaySeconds: 30
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: false }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: bnk-svc-account, namespace: bnk }
+spec: { selector: { app: bnk-svc-account }, ports: [{ port: 8081 }] }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: bnk-svc-account, namespace: bnk }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: bnk-svc-account }
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: bnk-core-emulator, namespace: bnk }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bnk-core-emulator } }
+  template:
+    metadata: { labels: { app: bnk-core-emulator } }
+    spec:
+      containers:
+        - name: app
+          image: bnk/bnk-core-emulator:0.1.0-SNAPSHOT
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: bnk-config }
+            - secretRef: { name: bnk-secret }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: bnk-gateway, namespace: bnk }
+spec:
+  replicas: 1   # 示範用：JWT 金鑰在啟動時產生，多副本需改為共用金鑰（K8s Secret）
+  selector: { matchLabels: { app: bnk-gateway } }
+  template:
+    metadata: { labels: { app: bnk-gateway } }
+    spec:
+      containers:
+        - name: app
+          image: bnk/bnk-gateway:0.1.0-SNAPSHOT
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8080 }]
+          envFrom: [{ configMapRef: { name: bnk-config } }]
+          readinessProbe: { httpGet: { path: /q/health/ready, port: 8080 } }
+          livenessProbe: { httpGet: { path: /q/health/live, port: 8080 } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: bnk-gateway, namespace: bnk }
+spec: { selector: { app: bnk-gateway }, ports: [{ port: 8080 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: bnk-ui, namespace: bnk }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: bnk-ui } }
+  template:
+    metadata: { labels: { app: bnk-ui } }
+    spec:
+      containers:
+        - name: nginx
+          image: bnk/bnk-ui:0.1.0
+          imagePullPolicy: IfNotPresent
+          env: [{ name: GATEWAY_URL, value: "http://bnk-gateway:8080" }]
+          ports: [{ containerPort: 8080 }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: bnk-ui, namespace: bnk }
+spec: { selector: { app: bnk-ui }, ports: [{ port: 80, targetPort: 8080 }] }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: { name: bnk, namespace: bnk }
+spec:
+  rules:
+    - host: bnk.localtest.me      # *.localtest.me 公開 DNS 會解析到 127.0.0.1，免改 hosts
+      http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: bnk-ui, port: { number: 80 } } } }

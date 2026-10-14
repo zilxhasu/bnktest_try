@@ -1,0 +1,24 @@
+quarkus:
+  application:
+    name: bnk-gateway
+  http:
+    port: 8080
+    test-port: 0
+  log:
+    console:
+      format: "%d{HH:mm:ss.SSS} %-5p [%c{2.}] %s%e%n"
+
+bnk:
+  gateway:
+    token-ttl: 30M
+    upstream-timeout: 30S
+    routes:
+      account: ${ACCOUNT_SVC_URL:http://localhost:8081}
+    # ⚠ 僅供本機示範的假帳號；正式環境請接身分驗證服務，密碼絕不放設定檔
+    demo-users:
+      alice:
+        company-id: "12345678"
+        password: ${DEMO_PASSWORD:demo1234}
+      bob:
+        company-id: "87654321"
+        password: ${DEMO_PASSWORD:demo1234}

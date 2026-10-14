@@ -1,0 +1,68 @@
+# 示範用的單副本基礎設施。正式環境建議改用 Operator / Helm chart（如 Bitnami、RabbitMQ Cluster Operator）
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: postgres, namespace: bnk }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata: { labels: { app: postgres } }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          env:
+            - { name: POSTGRES_DB, value: bnk }
+            - { name: POSTGRES_USER, value: bnk }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: bnk-secret, key: DB_PASSWORD } }
+          ports: [{ containerPort: 5432 }]
+          volumeMounts: [{ name: initdb, mountPath: /docker-entrypoint-initdb.d }]
+      volumes:
+        - name: initdb
+          configMap: { name: bnk-initdb }   # kubectl -n bnk create configmap bnk-initdb --from-file=db/
+---
+apiVersion: v1
+kind: Service
+metadata: { name: postgres, namespace: bnk }
+spec: { selector: { app: postgres }, ports: [{ port: 5432 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: redis, namespace: bnk }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: redis } }
+  template:
+    metadata: { labels: { app: redis } }
+    spec:
+      containers:
+        - { name: redis, image: "redis:7-alpine", ports: [{ containerPort: 6379 }] }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: redis, namespace: bnk }
+spec: { selector: { app: redis }, ports: [{ port: 6379 }] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: rabbitmq, namespace: bnk }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: rabbitmq } }
+  template:
+    metadata: { labels: { app: rabbitmq } }
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:4-management-alpine
+          env:
+            - { name: RABBITMQ_DEFAULT_USER, value: bnk }
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom: { secretKeyRef: { name: bnk-secret, key: RABBIT_PASSWORD } }
+          ports: [{ containerPort: 5672 }, { containerPort: 15672 }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: rabbitmq, namespace: bnk }
+spec: { selector: { app: rabbitmq }, ports: [{ name: amqp, port: 5672 }, { name: mgmt, port: 15672 }] }

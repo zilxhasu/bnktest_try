@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bnk-config
+  namespace: bnk
+data:
+  SPRING_PROFILES_ACTIVE: docker
+  DB_HOST: postgres
+  REDIS_HOST: redis
+  RABBIT_HOST: rabbitmq
+  RABBIT_USER: bnk
+  ACCOUNT_SVC_URL: http://bnk-svc-account:8081

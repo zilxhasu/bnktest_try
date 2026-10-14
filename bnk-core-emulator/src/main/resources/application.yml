@@ -1,0 +1,18 @@
+server:
+  port: 8082
+spring:
+  application:
+    name: bnk-core-emulator
+  rabbitmq:
+    host: ${RABBIT_HOST:localhost}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:guest}
+    password: ${RABBIT_PASSWORD:guest}
+emulator:
+  max-delay-ms: 1500   # 模擬主機回應時間 0~1.5 秒
+  fail-rate: 0.05      # 5% 機率回錯誤碼，測試前端的部分失敗處理
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

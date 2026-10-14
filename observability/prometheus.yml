@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: bnk-svc-account
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["bnk-svc-account:8081"]
+  - job_name: bnk-gateway
+    metrics_path: /q/metrics
+    static_configs:
+      - targets: ["bnk-gateway:8080"]

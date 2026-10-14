@@ -1,0 +1,52 @@
+<section class="head">
+  <div>
+    <h1>帳戶總覽</h1>
+    @if (summary(); as s) {
+      <p class="progress">主機回覆 {{ s.received }} / {{ s.total }}{{ s.done ? '，查詢完成' : '，查詢中…' }}</p>
+    }
+  </div>
+  <button (click)="queryBalance()" [disabled]="querying()">重新查詢餘額</button>
+</section>
+
+@if (error()) { <p class="error">{{ error() }}</p> }
+
+<section class="totals">
+  @for (t of summary()?.totals ?? []; track t.currency) {
+    <div class="tile">
+      <span class="currency">{{ t.currency }}</span>
+      <span class="amt">{{ t.total | number: '1.2-2' }}</span>
+      <span class="cnt">{{ t.count }} 個帳戶</span>
+    </div>
+  }
+</section>
+
+<table>
+  <thead>
+    <tr><th>地區</th><th>帳號</th><th>暱稱</th><th>類型</th><th>幣別</th><th class="num" style="text-align:right">餘額</th></tr>
+  </thead>
+  <tbody>
+    @for (a of accounts(); track a.accountNo) {
+      <tr>
+        <td>{{ a.area }}</td>
+        <td>{{ mask(a.accountNo) }}</td>
+        <td>
+          @if (editing === a.accountNo) {
+            <input [(ngModel)]="aliasDraft" maxlength="15" />
+            <button (click)="saveAlias(a.accountNo)">存</button>
+          } @else {
+            {{ a.alias ?? '—' }} <a class="edit" (click)="startEdit(a)">編輯</a>
+          }
+        </td>
+        <td>{{ a.accountType }}</td>
+        <td>{{ a.currency }}</td>
+        <td class="num">
+          @if (balanceOf(a.accountNo); as b) {
+            @if (b.status === 'OK') { {{ b.balance | number: '1.2-2' }} } @else { <span class="error">查詢失敗</span> }
+          } @else {
+            <span class="pending">查詢中…</span>
+          }
+        </td>
+      </tr>
+    }
+  </tbody>
+</table>
